@@ -4,8 +4,8 @@ pragma solidity >=0.8.0 <0.9.0;
 library CairoLib {
     /// @dev The Cairo precompile contract's address.
     address constant CAIRO_MESSAGE_PRECOMPILE = 0x0000000000000000000000000000000000075002;
-    address constant CAIRO_MULTICALL_PRECOMPILE= 0x0000000000000000000000000000000000075003;
-    address constant CAIRO_CALL_PRECOMPILE= 0x0000000000000000000000000000000000075004;
+    address constant CAIRO_MULTICALL_PRECOMPILE = 0x0000000000000000000000000000000000075003;
+    address constant CAIRO_CALL_PRECOMPILE = 0x0000000000000000000000000000000000075004;
 
     struct CairoCall {
         uint256 contractAddress;
@@ -19,7 +19,10 @@ library CairoLib {
     /// @param functionSelector The function selector of the Cairo contract function to be called.
     /// @param data The input data for the Cairo contract function.
     /// @return The return data from the Cairo contract function.
-    function callCairo(uint256 contractAddress, uint256 functionSelector, uint256[] memory data) internal returns (bytes memory) {
+    function callCairo(uint256 contractAddress, uint256 functionSelector, uint256[] memory data)
+        internal
+        returns (bytes memory)
+    {
         bytes memory callData = abi.encode(contractAddress, functionSelector, data);
 
         (bool success, bytes memory result) = CAIRO_CALL_PRECOMPILE.call(callData);
@@ -28,10 +31,7 @@ library CairoLib {
         return result;
     }
 
-    function callCairo(CairoCall memory call)
-        internal
-        returns (bytes memory)
-    {
+    function callCairo(CairoCall memory call) internal returns (bytes memory) {
         return callCairo(call.contractAddress, call.functionSelector, call.data);
     }
 
@@ -46,7 +46,10 @@ library CairoLib {
         return callCairo(contractAddress, functionSelector, data);
     }
 
-    function callCairo(uint256 contractAddress, string memory functionName, uint256[] memory data) internal returns (bytes memory) {
+    function callCairo(uint256 contractAddress, string memory functionName, uint256[] memory data)
+        internal
+        returns (bytes memory)
+    {
         uint256 functionSelector = uint256(keccak256(bytes(functionName))) % 2 ** 250;
         return callCairo(contractAddress, functionSelector, data);
     }
@@ -57,7 +60,11 @@ library CairoLib {
     /// @param functionSelector The function selector of the Cairo contract function to be called.
     /// @param data The input data for the Cairo contract function.
     /// @return The return data from the Cairo contract function.
-    function staticcallCairo(uint256 contractAddress, uint256 functionSelector, uint256[] memory data) internal view returns (bytes memory) {
+    function staticcallCairo(uint256 contractAddress, uint256 functionSelector, uint256[] memory data)
+        internal
+        view
+        returns (bytes memory)
+    {
         bytes memory callData = abi.encode(contractAddress, functionSelector, data);
 
         (bool success, bytes memory result) = CAIRO_CALL_PRECOMPILE.staticcall(callData);
@@ -85,14 +92,9 @@ library CairoLib {
         return staticcallCairo(contractAddress, functionSelector, data);
     }
 
-    function staticcallCairo(CairoCall memory call)
-        internal
-        view
-        returns (bytes memory)
-    {
+    function staticcallCairo(CairoCall memory call) internal view returns (bytes memory) {
         return staticcallCairo(call.contractAddress, call.functionSelector, call.data);
     }
-
 
     /// @notice Performs a multicall to Cairo contracts deployed on Starknet.
     /// @dev Used with intent to modify the state of the Cairo contract.
@@ -145,6 +147,8 @@ library CairoLib {
      */
     /// @param data The Cairo representation of the ByteArray serialized to bytes.
     function byteArrayToString(bytes memory data) internal pure returns (string memory) {
+        // It must be at least 96 bytes long (fullWordsLength + pendingWord + pendingWordLen)
+        // It can be more if fullWordsLength is greater than 0 and fullWords list is not empty
         require(data.length >= 96, "Invalid byte array length");
 
         uint256 fullWordsLength;
@@ -160,8 +164,10 @@ library CairoLib {
             pendingWord := mload(pendingWordPtr)
             pendingWordLen := mload(add(pendingWordPtr, 32))
         }
-
-        require(pendingWordLen <= 31, "Invalid pending word length");
+        // Calculate the expected length of data
+        uint256 expectedLength = 96 + (fullWordsLength * 32);
+        require(data.length == expectedLength, "Data length does not match fullWordsLength");
+        require(pendingWordLen < 31, "Invalid pending word length");
 
         uint256 totalLength = fullWordsLength * 31 + pendingWordLen;
         bytes memory result = new bytes(totalLength);
